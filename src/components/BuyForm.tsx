@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { parseEther, formatEther } from "viem";
+import React, { useState, useEffect } from "react";
+import { parseEther, formatUnits, erc20Abi } from "viem";
 import {
   useAccount,
   useReadContract,
@@ -13,16 +13,33 @@ import { TokenDetail } from "@/services/getTokenDetails";
 
 interface BuyFormProps {
   selectedToken: TokenDetail;
+  onSuccess: () => void;
   onBack: () => void;
 }
 
-export default function BuyForm({ selectedToken, onBack }: BuyFormProps) {
+export default function BuyForm({
+  selectedToken,
+  onSuccess,
+  onBack,
+}: BuyFormProps) {
   const { address: userAddress, isConnected: accountConnected } = useAccount();
 
   const [quoteInStr, setQuoteInStr] = useState<string>("");
   const [slippageBps, setSlippageBps] = useState<number>(100);
 
   const curveAddr = selectedToken.curveAddress as `0x${string}`;
+  const tokenAddr = selectedToken.tokenAddress as `0x${string}`;
+
+  // Membaca saldo token user yang sedang dibeli
+  const { data: tokenBalance, refetch: refetchTokenBalance } = useReadContract({
+    address: tokenAddr,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: userAddress ? [userAddress] : undefined,
+    query: {
+      enabled: !!userAddress && !!tokenAddr,
+    },
+  });
 
   const { data: feeBps } = useReadContract({
     address: curveAddr,
@@ -88,8 +105,19 @@ export default function BuyForm({ selectedToken, onBack }: BuyFormProps) {
     hash,
   });
 
+  // Menggunakan useEffect yang aman untuk memicu tindakan luar saat transaksi sukses
+  useEffect(() => {
+    if (isSuccess) {
+      refetchTokenBalance();
+      onSuccess();
+    }
+  }, [isSuccess, refetchTokenBalance, onSuccess]);
+
   const handleBuy = () => {
     if (isButtonDisabled) return;
+
+    // Reset input langsung saat tombol beli diklik
+    setQuoteInStr("");
 
     writeContract({
       address: curveAddr,
@@ -118,6 +146,17 @@ export default function BuyForm({ selectedToken, onBack }: BuyFormProps) {
           Phase 0: Trading
         </span>
       </div>
+
+      {/* Informasi Saldo Token Pengguna */}
+      {accountConnected && (
+        <div className="bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-800 flex justify-between text-xs font-mono">
+          <span className="text-slate-400">Saldo Anda saat ini:</span>
+          <span className="text-emerald-400 font-bold">
+            {tokenBalance ? formatUnits(tokenBalance as bigint, 18) : "0"}{" "}
+            {selectedToken.symbol}
+          </span>
+        </div>
+      )}
 
       <div className="space-y-2">
         <label className="text-xs text-slate-400 block">
@@ -167,13 +206,13 @@ export default function BuyForm({ selectedToken, onBack }: BuyFormProps) {
         <div className="flex justify-between text-slate-400">
           <span>Estimasi Token Diterima:</span>
           <span className="text-emerald-400 font-bold">
-            {formatEther(tokensOut)} {selectedToken.symbol}
+            {formatUnits(tokensOut, 18)} {selectedToken.symbol}
           </span>
         </div>
         <div className="flex justify-between text-slate-400">
           <span>Minimum Diterima (Slippage):</span>
           <span className="text-slate-200">
-            {formatEther(minTokensOut)} {selectedToken.symbol}
+            {formatUnits(minTokensOut, 18)} {selectedToken.symbol}
           </span>
         </div>
       </div>

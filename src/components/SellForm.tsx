@@ -13,11 +13,15 @@ import { TokenDetail } from "@/services/getTokenDetails";
 
 interface SellFormProps {
   selectedToken: TokenDetail;
+  onSuccess: () => void;
   onBack: () => void;
 }
 
-export default function SellForm({ selectedToken, onBack }: SellFormProps) {
-  // Ambil address user dan status koneksi dompet
+export default function SellForm({
+  selectedToken,
+  onSuccess,
+  onBack,
+}: SellFormProps) {
   const { address: userAddress, isConnected: accountConnected } = useAccount();
 
   const [tokenInStr, setTokenInStr] = useState<string>("");
@@ -25,6 +29,16 @@ export default function SellForm({ selectedToken, onBack }: SellFormProps) {
 
   const curveAddr = selectedToken.curveAddress as `0x${string}`;
   const tokenAddr = selectedToken.tokenAddress as `0x${string}`;
+
+  const { data: tokenBalance, refetch: refetchTokenBalance } = useReadContract({
+    address: tokenAddr,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: userAddress ? [userAddress] : undefined,
+    query: {
+      enabled: !!userAddress && !!tokenAddr,
+    },
+  });
 
   const { data: feeBps } = useReadContract({
     address: curveAddr,
@@ -112,8 +126,11 @@ export default function SellForm({ selectedToken, onBack }: SellFormProps) {
   useEffect(() => {
     if (isSuccess) {
       refetchAllowance();
+      refetchTokenBalance();
+      setTokenInStr(""); // Reset input setelah sukses
+      onSuccess();
     }
-  }, [isSuccess, refetchAllowance]);
+  }, [isSuccess, refetchAllowance, refetchTokenBalance, onSuccess]);
 
   const handleApprove = () => {
     if (!tokenInWei) return;
@@ -154,6 +171,17 @@ export default function SellForm({ selectedToken, onBack }: SellFormProps) {
           Phase 0: Trading
         </span>
       </div>
+
+      {/* Informasi Saldo Token Pengguna */}
+      {accountConnected && (
+        <div className="bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-800 flex justify-between text-xs font-mono">
+          <span className="text-slate-400">Saldo Anda saat ini:</span>
+          <span className="text-emerald-400 font-bold">
+            {tokenBalance ? formatUnits(tokenBalance as bigint, 18) : "0"}{" "}
+            {selectedToken.symbol}
+          </span>
+        </div>
+      )}
 
       <div className="space-y-2">
         <label className="text-xs text-slate-400 block">

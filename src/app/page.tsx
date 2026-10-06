@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   useAccount,
   useConnect,
@@ -56,6 +56,8 @@ export default function Home() {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
   const [detailedTokens, setDetailedTokens] = useState<TokenDetail[]>([]);
@@ -64,7 +66,9 @@ export default function Home() {
   const [selectedToken, setSelectedToken] = useState<TokenDetail | null>(null);
   const [tradeTab, setTradeTab] = useState<"buy" | "sell">("buy");
 
-  const { data: balance } = useBalance({
+  const isFetchingRef = useRef<boolean>(false);
+
+  const { data: balance, refetch: refetchBalance } = useBalance({
     address: address,
   });
 
@@ -78,7 +82,15 @@ export default function Home() {
     functionName: "launchFee",
   });
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMounted(true);
+  }, []);
+
   const loadTokensAndDetails = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     setIsLoading(true);
     setHasError(false);
     try {
@@ -91,6 +103,17 @@ export default function Home() {
       if (data.length > 0) {
         const details = await getTokenDetails(data);
         setDetailedTokens(details);
+
+        // Jika user sedang membuka form detail token, sinkronkan juga data selectedToken
+        setSelectedToken((prevSelected) => {
+          if (!prevSelected) return null;
+          const updated = details.find(
+            (t) =>
+              t.tokenAddress.toLowerCase() ===
+              prevSelected.tokenAddress.toLowerCase(),
+          );
+          return updated || prevSelected;
+        });
       } else {
         setDetailedTokens([]);
       }
@@ -99,18 +122,22 @@ export default function Home() {
       setHasError(true);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    let isComponentMounted = true;
 
     async function initFetch() {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
       setIsLoading(true);
       setHasError(false);
       try {
         const data = await getTokenList();
-        if (!isMounted) return;
+        if (!isComponentMounted) return;
 
         if (!data) {
           throw new Error("Gagal mengambil data dari blockchain/server");
@@ -118,28 +145,50 @@ export default function Home() {
 
         if (data.length > 0) {
           const details = await getTokenDetails(data);
-          if (!isMounted) return;
+          if (!isComponentMounted) return;
           setDetailedTokens(details);
         } else {
           setDetailedTokens([]);
         }
       } catch (error) {
-        if (!isMounted) return;
+        if (!isComponentMounted) return;
         console.error("Gagal memuat token list atau detail:", error);
         setHasError(true);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isComponentMounted) {
+          setIsLoading(false);
+        }
+        isFetchingRef.current = false;
       }
     }
 
-    initFetch();
+    if (isMounted) {
+      initFetch();
+    }
 
     return () => {
-      isMounted = false;
+      isComponentMounted = false;
     };
-  }, [loadTokensAndDetails]);
+  }, [isMounted]);
+
+  const handleTransactionSuccess = async () => {
+    await loadTokensAndDetails();
+    refetchBalance();
+  };
 
   const isWrongNetwork = isConnected && chainId !== robinhoodTestnet.id;
+
+  if (!isMounted) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-white p-4 sm:p-8 flex flex-col items-center justify-center">
+        <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl text-center">
+          <p className="text-slate-400 text-sm animate-pulse">
+            Memuat Web3 Launchpad...
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-white p-4 sm:p-8 flex flex-col items-center justify-center">
@@ -176,6 +225,7 @@ export default function Home() {
             {tradeTab === "buy" ? (
               <BuyForm
                 selectedToken={selectedToken}
+                onSuccess={handleTransactionSuccess}
                 onBack={() => {
                   setSelectedToken(null);
                   setTradeTab("buy");
@@ -184,6 +234,7 @@ export default function Home() {
             ) : (
               <SellForm
                 selectedToken={selectedToken}
+                onSuccess={handleTransactionSuccess}
                 onBack={() => {
                   setSelectedToken(null);
                   setTradeTab("buy");
