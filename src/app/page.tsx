@@ -1,69 +1,131 @@
-import Image from "next/image";
+"use client";
+
+import React from "react";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useBalance,
+  useSwitchChain,
+  useReadContract,
+} from "wagmi";
+import { injected } from "wagmi/connectors";
+import { formatEther } from "viem";
+import { robinhoodTestnet } from "@/config/chain";
+import LaunchFactoryABI from "@/abi/LaunchFactory.json";
+
+const FACTORY_ADDRESS = "0x533cE670f1372cb402D49866608b92e7bc2b4493";
 
 export default function Home() {
+  const { address, isConnected, chainId } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
+
+  // Ambil saldo ETH user
+  const { data: balance } = useBalance({
+    address: address,
+  });
+
+  // Membaca launchFee() dari LaunchFactory (Langkah 1)
+  const {
+    data: launchFee,
+    isLoading: feeLoading,
+    error: feeError,
+  } = useReadContract({
+    address: FACTORY_ADDRESS as `0x${string}`,
+    abi: LaunchFactoryABI,
+    functionName: "launchFee",
+  });
+
+  const isWrongNetwork = isConnected && chainId !== robinhoodTestnet.id;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-slate-950 text-white p-8 flex flex-col items-center justify-center">
+      <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Robinhood Launchpad Test</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Langkah 1 & 2: Koneksi Wallet & Factory
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* STATUS KONEKSI WALLET */}
+        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+          {!isConnected ? (
+            <button
+              onClick={() => {
+                console.log("Tombol connect metamask diklik!");
+                connect({ connector: injected() });
+              }}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium transition"
+            >
+              Connect MetaMask
+            </button>
+          ) : isWrongNetwork ? (
+            <div className="space-y-3 text-center">
+              <p className="text-amber-400 text-sm">
+                Anda berada di jaringan yang salah. Harap pindah ke Robinhood
+                Chain Testnet.
+              </p>
+              <button
+                onClick={() => switchChain({ chainId: robinhoodTestnet.id })}
+                className="w-full py-3 bg-amber-600 hover:bg-amber-500 rounded-xl font-medium transition"
+              >
+                Switch ke Robinhood Testnet
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Status:</span>
+                <span className="text-emerald-400 font-medium">Connected</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Address:</span>
+                <span className="font-mono">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Saldo ETH:</span>
+                <span>
+                  {balance
+                    ? `${Number(formatEther(balance.value)).toFixed(4)} ETH`
+                    : "0 ETH"}
+                </span>
+              </div>
+              <button
+                onClick={() => disconnect()}
+                className="w-full mt-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 rounded-xl font-medium transition text-sm"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
         </div>
-      </main>
-    </div>
+
+        {/* MEMBACA LAUNCH FEE DARI CONTRACT (LANGKAH 1) */}
+        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+          <h2 className="text-sm font-semibold text-slate-300">
+            Factory Data (Launch Fee)
+          </h2>
+          {feeLoading ? (
+            <p className="text-sm text-slate-500 animate-pulse">
+              Memuat data dari smart contract...
+            </p>
+          ) : feeError ? (
+            <p className="text-sm text-red-400">
+              Gagal memuat: Periksa koneksi RPC atau jaringan Anda.
+            </p>
+          ) : (
+            <p className="text-sm text-emerald-400 font-mono">
+              Launch Fee:{" "}
+              {launchFee ? `${formatEther(launchFee as bigint)} ETH` : "-"}
+            </p>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }
