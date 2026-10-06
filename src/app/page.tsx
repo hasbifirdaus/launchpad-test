@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   useAccount,
   useConnect,
@@ -13,8 +13,16 @@ import { injected } from "wagmi/connectors";
 import { formatEther } from "viem";
 import { robinhoodTestnet } from "@/config/chain";
 import LaunchFactoryABI from "@/abi/LaunchFactory.json";
+import { fetchTokenList } from "@/services/getTokenList";
 
 const FACTORY_ADDRESS = "0x533cE670f1372cb402D49866608b92e7bc2b4493";
+
+interface ITokenItem {
+  tokenAddress: string;
+  curveAddress: string;
+  pairToken: string;
+  graduationThreshold: bigint;
+}
 
 export default function Home() {
   const { address, isConnected, chainId } = useAccount();
@@ -22,12 +30,13 @@ export default function Home() {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
-  // Ambil saldo ETH user
+  const [tokens, setTokens] = useState<ITokenItem[]>([]);
+  const [isFetchingTokens, setIsFetchingTokens] = useState<boolean>(false);
+
   const { data: balance } = useBalance({
     address: address,
   });
 
-  // Membaca launchFee() dari LaunchFactory (Langkah 1)
   const {
     data: launchFee,
     isLoading: feeLoading,
@@ -38,6 +47,23 @@ export default function Home() {
     functionName: "launchFee",
   });
 
+  useEffect(() => {
+    async function loadTokens() {
+      setIsFetchingTokens(true);
+      try {
+        const data = await fetchTokenList();
+        console.log("Daftar token berhasil dimuat", data);
+        setTokens(data);
+      } catch (error) {
+        console.error("Gagal memuat token list:", error);
+      } finally {
+        setIsFetchingTokens(false);
+      }
+    }
+
+    loadTokens();
+  }, []);
+
   const isWrongNetwork = isConnected && chainId !== robinhoodTestnet.id;
 
   return (
@@ -46,11 +72,10 @@ export default function Home() {
         <div className="text-center">
           <h1 className="text-2xl font-bold">Robinhood Launchpad Test</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Langkah 1 & 2: Koneksi Wallet & Factory
+            Langkah 1, 2 & 3: Koneksi Wallet, Factory & Token List
           </p>
         </div>
 
-        {/* STATUS KONEKSI WALLET */}
         <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
           {!isConnected ? (
             <button
@@ -105,7 +130,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* MEMBACA LAUNCH FEE DARI CONTRACT (LANGKAH 1) */}
         <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
           <h2 className="text-sm font-semibold text-slate-300">
             Factory Data (Launch Fee)
@@ -123,6 +147,35 @@ export default function Home() {
               Launch Fee:{" "}
               {launchFee ? `${formatEther(launchFee as bigint)} ETH` : "-"}
             </p>
+          )}
+        </div>
+
+        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+          <h2 className="text-sm font-semibold text-slate-300">
+            Token List (Event Logs) - Total: {tokens.length}
+          </h2>
+          {isFetchingTokens ? (
+            <p className="text-sm text-slate-500 animate-pulse">
+              Memindai event dari blockchain (chunking blocks)...
+            </p>
+          ) : tokens.length === 0 ? (
+            <p className="text-sm text-slate-400">Tidak ada token ditemukan.</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {tokens.map((t, idx) => (
+                <div
+                  key={idx}
+                  className="p-2 bg-slate-900 rounded-lg text-xs font-mono space-y-1 border border-slate-800"
+                >
+                  <div className="text-blue-400 truncate">
+                    Token: {t.tokenAddress}
+                  </div>
+                  <div className="text-slate-400 truncate">
+                    Curve: {t.curveAddress}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
