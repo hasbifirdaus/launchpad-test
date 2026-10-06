@@ -16,6 +16,7 @@ import LaunchFactoryABI from "@/abi/LaunchFactory.json";
 import { getTokenList } from "@/services/getTokenList";
 import { getTokenDetails, TokenDetail } from "@/services/getTokenDetails";
 import BuyForm from "@/components/BuyForm";
+import SellForm from "@/components/SellForm";
 
 const FACTORY_ADDRESS = "0x533cE670f1372cb402D49866608b92e7bc2b4493";
 
@@ -61,6 +62,7 @@ export default function Home() {
   const [logoErrors, setLogoErrors] = useState<Record<string, boolean>>({});
 
   const [selectedToken, setSelectedToken] = useState<TokenDetail | null>(null);
+  const [tradeTab, setTradeTab] = useState<"buy" | "sell">("buy");
 
   const { data: balance } = useBalance({
     address: address,
@@ -146,12 +148,49 @@ export default function Home() {
           <h1 className="text-2xl font-bold">Robinhood Launchpad Test</h1>
         </div>
 
-        {/* Jika ada token yang dipilih, tampilkan halaman BuyForm. Jika tidak, tampilkan dashboard utama */}
         {selectedToken ? (
-          <BuyForm
-            selectedToken={selectedToken}
-            onBack={() => setSelectedToken(null)}
-          />
+          <div className="space-y-4">
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setTradeTab("buy")}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg transition ${
+                  tradeTab === "buy"
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Beli (Buy)
+              </button>
+              <button
+                onClick={() => setTradeTab("sell")}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg transition ${
+                  tradeTab === "sell"
+                    ? "bg-amber-600 text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Jual (Sell)
+              </button>
+            </div>
+
+            {tradeTab === "buy" ? (
+              <BuyForm
+                selectedToken={selectedToken}
+                onBack={() => {
+                  setSelectedToken(null);
+                  setTradeTab("buy");
+                }}
+              />
+            ) : (
+              <SellForm
+                selectedToken={selectedToken}
+                onBack={() => {
+                  setSelectedToken(null);
+                  setTradeTab("buy");
+                }}
+              />
+            )}
+          </div>
         ) : (
           <>
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
@@ -231,7 +270,7 @@ export default function Home() {
 
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
               <h2 className="text-sm font-semibold text-slate-300">
-                Token Market List (Klik token untuk membeli)
+                Token Market List (Klik token untuk Beli/Jual)
               </h2>
 
               {isLoading ? (
@@ -274,9 +313,9 @@ export default function Home() {
                       <div
                         key={idx}
                         onClick={() => {
-                          // Hanya izinkan klik jika berada di fase 0 (Trading)
                           if (token.phase === 0) {
                             setSelectedToken(token);
+                            setTradeTab("buy");
                           }
                         }}
                         className={`p-3.5 bg-slate-900 rounded-xl space-y-3 border transition ${
