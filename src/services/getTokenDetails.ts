@@ -32,7 +32,7 @@ function formatTinyPrice(price: number): string {
   return price.toExponential(4);
 }
 
-export async function fetchTokenDetails(
+export async function getTokenDetails(
   tokensList: { tokenAddress: string; curveAddress: string }[],
 ) {
   if (!tokensList || tokensList.length === 0) return [];

@@ -9,7 +9,7 @@ const publicClient = createPublicClient({
 const FACTORY_ADDRESS = "0x533cE670f1372cb402D49866608b92e7bc2b4493";
 const DEPLOY_BLOCK = BigInt(129157568);
 
-export async function fetchTokenList() {
+export async function getTokenList() {
   try {
     const currentBlock = await publicClient.getBlockNumber();
     const CHUNK_SIZE = BigInt(50000);
@@ -58,6 +58,6 @@ export async function fetchTokenList() {
     return tokens;
   } catch (error) {
     console.error("Gagal mengambil daftar token:", error);
-    return [];
+    throw error;
   }
 }
