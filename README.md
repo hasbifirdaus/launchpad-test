@@ -84,7 +84,7 @@ npm run dev
 Berikut adalah beberapa dokumentasi tampilan antarmuka aplikasi:
 
 - Tampilan Utama & Koneksi Dompet:
-  ![Market List](screenshots/market-list.png)
+  ![Market List](screenshots/market-list.jpg)
 
 - Form Pembelian & Penjualan Token (Buy/Sell Form):
   ![Buy Form](screenshots/buy-form.png)
