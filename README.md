@@ -1,3 +1,6 @@
+[![demo online](https://img.shields.io/badge/demo-online-brightgreen)](https://launchpad-test-beta.vercel.app/)
+**Live URL:** [https://launchpad-test-beta.vercel.app/](https://launchpad-test-beta.vercel.app/)
+
 # Launchpad Test
 
 A decentralized Web3 launchpad test application built with **Next.js (App Router)**, **Wagmi/Viem**, and **Tailwind CSS**. It allows users to connect their wallets, view bonding curve token markets, check token progress and prices, and execute buy/sell transactions seamlessly with real-time balance updates.
@@ -35,7 +38,7 @@ Ikuti langkah-langkah berikut untuk menjalankan proyek ini secara lokal:
 1. Clone repository ini:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/hasbifirdaus/launchpad-test.git
 cd launchpad-test
 ```
 
